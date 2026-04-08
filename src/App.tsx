@@ -5,9 +5,19 @@ import BreadcrumbBar from "./components/BreadcrumbBar";
 import FileList from "./components/FileList";
 import FileViewer from "./components/FileViewer";
 import MoveDialog from "./components/MoveDialog";
+import InputDialog from "./components/InputDialog";
+import ConfirmDialog from "./components/ConfirmDialog";
 import { useS3Buckets } from "./hooks/useS3Buckets";
 import { useS3Objects } from "./hooks/useS3Objects";
 import type { ViewState, ToastMessage, S3Object } from "./types";
+
+type DialogState =
+  | null
+  | { type: "createBucket" }
+  | { type: "createFolder" }
+  | { type: "rename"; target: S3Object }
+  | { type: "confirmDeleteBucket"; bucket: string }
+  | { type: "confirmDelete"; target: S3Object };
 
 export default function App() {
   const { buckets, loading, error, createBucket, deleteBucket } =
@@ -17,6 +27,7 @@ export default function App() {
   const [viewState, setViewState] = useState<ViewState>({ type: "list" });
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [moveTarget, setMoveTarget] = useState<S3Object | null>(null);
+  const [dialog, setDialog] = useState<DialogState>(null);
 
   const {
     objects,
@@ -49,9 +60,12 @@ export default function App() {
     setViewState({ type: "list" });
   }, []);
 
-  const handleCreateBucket = useCallback(async () => {
-    const name = prompt("Bucket name:");
-    if (!name) return;
+  const handleCreateBucket = useCallback(() => {
+    setDialog({ type: "createBucket" });
+  }, []);
+
+  const doCreateBucket = useCallback(async (name: string) => {
+    setDialog(null);
     try {
       await createBucket(name);
       addToast(`Bucket "${name}" created`, "success");
@@ -61,8 +75,15 @@ export default function App() {
   }, [createBucket, addToast]);
 
   const handleDeleteBucket = useCallback(
+    (name: string) => {
+      setDialog({ type: "confirmDeleteBucket", bucket: name });
+    },
+    []
+  );
+
+  const doDeleteBucket = useCallback(
     async (name: string) => {
-      if (!confirm(`Delete bucket "${name}" and all its contents?`)) return;
+      setDialog(null);
       try {
         await deleteBucket(name);
         if (selectedBucket === name) {
@@ -77,9 +98,12 @@ export default function App() {
     [deleteBucket, selectedBucket, addToast]
   );
 
-  const handleCreateFolder = useCallback(async () => {
-    const name = prompt("Folder name:");
-    if (!name) return;
+  const handleCreateFolder = useCallback(() => {
+    setDialog({ type: "createFolder" });
+  }, []);
+
+  const doCreateFolder = useCallback(async (name: string) => {
+    setDialog(null);
     try {
       await createFolder(name);
       addToast(`Folder "${name}" created`, "success");
@@ -133,9 +157,16 @@ export default function App() {
   );
 
   const handleRename = useCallback(
-    async (obj: S3Object) => {
-      const newName = prompt("New name:", obj.name);
-      if (!newName || newName === obj.name) return;
+    (obj: S3Object) => {
+      setDialog({ type: "rename", target: obj });
+    },
+    []
+  );
+
+  const doRename = useCallback(
+    async (obj: S3Object, newName: string) => {
+      setDialog(null);
+      if (newName === obj.name) return;
       try {
         if (obj.isFolder) {
           const oldPrefix = obj.key;
@@ -155,11 +186,15 @@ export default function App() {
   );
 
   const handleDelete = useCallback(
+    (obj: S3Object) => {
+      setDialog({ type: "confirmDelete", target: obj });
+    },
+    []
+  );
+
+  const doDelete = useCallback(
     async (obj: S3Object) => {
-      const msg = obj.isFolder
-        ? `Delete folder "${obj.name}" and all its contents?`
-        : `Delete "${obj.name}"?`;
-      if (!confirm(msg)) return;
+      setDialog(null);
       try {
         if (obj.isFolder) {
           await deleteFolder(obj.key);
@@ -264,6 +299,62 @@ export default function App() {
           isFolder={moveTarget.isFolder}
           onMove={handleMoveConfirm}
           onCancel={() => setMoveTarget(null)}
+        />
+      )}
+
+      {dialog?.type === "createBucket" && (
+        <InputDialog
+          title="Create Bucket"
+          label="Bucket name:"
+          placeholder="my-bucket"
+          onSubmit={doCreateBucket}
+          onCancel={() => setDialog(null)}
+        />
+      )}
+
+      {dialog?.type === "createFolder" && (
+        <InputDialog
+          title="Create Folder"
+          label="Folder name:"
+          placeholder="new-folder"
+          onSubmit={doCreateFolder}
+          onCancel={() => setDialog(null)}
+        />
+      )}
+
+      {dialog?.type === "rename" && (
+        <InputDialog
+          title="Rename"
+          label="New name:"
+          defaultValue={dialog.target.name}
+          onSubmit={(newName) => doRename(dialog.target, newName)}
+          onCancel={() => setDialog(null)}
+        />
+      )}
+
+      {dialog?.type === "confirmDeleteBucket" && (
+        <ConfirmDialog
+          title="Delete Bucket"
+          message={`Delete bucket "${dialog.bucket}" and all its contents?`}
+          confirmLabel="Delete"
+          destructive
+          onConfirm={() => doDeleteBucket(dialog.bucket)}
+          onCancel={() => setDialog(null)}
+        />
+      )}
+
+      {dialog?.type === "confirmDelete" && (
+        <ConfirmDialog
+          title={dialog.target.isFolder ? "Delete Folder" : "Delete File"}
+          message={
+            dialog.target.isFolder
+              ? `Delete folder "${dialog.target.name}" and all its contents?`
+              : `Delete "${dialog.target.name}"?`
+          }
+          confirmLabel="Delete"
+          destructive
+          onConfirm={() => doDelete(dialog.target)}
+          onCancel={() => setDialog(null)}
         />
       )}
 
