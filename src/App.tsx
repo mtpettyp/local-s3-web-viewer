@@ -3,6 +3,7 @@ import TopBar from "./components/TopBar";
 import Sidebar from "./components/Sidebar";
 import BreadcrumbBar from "./components/BreadcrumbBar";
 import FileList from "./components/FileList";
+import FileViewer from "./components/FileViewer";
 import { useS3Buckets } from "./hooks/useS3Buckets";
 import { useS3Objects } from "./hooks/useS3Objects";
 import { ViewState, ToastMessage, S3Object } from "./types";
@@ -207,9 +208,22 @@ export default function App() {
                   onDelete={handleDelete}
                 />
               ) : (
-                <div className="flex-1 flex items-center justify-center text-slate-500">
-                  File viewer coming in next task...
-                </div>
+                <FileViewer
+                  bucket={viewState.bucket}
+                  fileKey={viewState.key}
+                  fileName={viewState.name}
+                  size={viewState.size}
+                  lastModified={viewState.lastModified}
+                  onBack={() => setViewState({ type: "list" })}
+                  onDownload={() =>
+                    downloadObject(viewState.key, viewState.name).catch((err) =>
+                      addToast(
+                        err instanceof Error ? err.message : "Failed to download",
+                        "error"
+                      )
+                    )
+                  }
+                />
               )}
             </>
           ) : (
