@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(/Users/mtpettyp/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/scripts/start-server.sh --project-dir /Users/mtpettyp/Development/floci-s3-browser)",
+      "Bash(/Users/mtpettyp/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/scripts/stop-server.sh /Users/mtpettyp/Development/floci-s3-browser/.superpowers/brainstorm/84770-1775664421)",
+      "Bash(npm create:*)",
+      "Bash(cp -r /tmp/vite-scaffold/.gitignore /tmp/vite-scaffold/eslint.config.js /tmp/vite-scaffold/index.html /tmp/vite-scaffold/package.json /tmp/vite-scaffold/tsconfig.app.json /tmp/vite-scaffold/tsconfig.json /tmp/vite-scaffold/tsconfig.node.json /tmp/vite-scaffold/vite.config.ts /Users/mtpettyp/Development/floci-s3-browser/)",
+      "Bash(cp -r /tmp/vite-scaffold/src /Users/mtpettyp/Development/floci-s3-browser/)",
+      "Bash(cp -r /tmp/vite-scaffold/public /Users/mtpettyp/Development/floci-s3-browser/)",
+      "Bash(npm install:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
