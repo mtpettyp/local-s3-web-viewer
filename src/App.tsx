@@ -1,17 +1,31 @@
 import { useState, useCallback } from "react";
 import TopBar from "./components/TopBar";
 import Sidebar from "./components/Sidebar";
+import BreadcrumbBar from "./components/BreadcrumbBar";
+import FileList from "./components/FileList";
 import { useS3Buckets } from "./hooks/useS3Buckets";
-import { ViewState, ToastMessage } from "./types";
+import { useS3Objects } from "./hooks/useS3Objects";
+import { ViewState, ToastMessage, S3Object } from "./types";
 
 export default function App() {
-  const { buckets, loading, error, refresh, createBucket, deleteBucket } =
+  const { buckets, loading, error, createBucket, deleteBucket } =
     useS3Buckets();
-
   const [selectedBucket, setSelectedBucket] = useState<string | null>(null);
   const [prefix, setPrefix] = useState("");
   const [viewState, setViewState] = useState<ViewState>({ type: "list" });
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const {
+    objects,
+    loading: objectsLoading,
+    uploadFile,
+    createFolder,
+    deleteObject,
+    deleteFolder,
+    renameObject,
+    renameFolder,
+    downloadObject,
+  } = useS3Objects(selectedBucket, prefix);
 
   const addToast = useCallback((message: string, type: "error" | "success") => {
     const id = crypto.randomUUID();
@@ -25,6 +39,11 @@ export default function App() {
     setViewState({ type: "list" });
   }, []);
 
+  const handleNavigate = useCallback((newPrefix: string) => {
+    setPrefix(newPrefix);
+    setViewState({ type: "list" });
+  }, []);
+
   const handleCreateBucket = useCallback(async () => {
     const name = prompt("Bucket name:");
     if (!name) return;
@@ -32,10 +51,7 @@ export default function App() {
       await createBucket(name);
       addToast(`Bucket "${name}" created`, "success");
     } catch (err) {
-      addToast(
-        err instanceof Error ? err.message : "Failed to create bucket",
-        "error"
-      );
+      addToast(err instanceof Error ? err.message : "Failed to create bucket", "error");
     }
   }, [createBucket, addToast]);
 
@@ -50,14 +66,113 @@ export default function App() {
         }
         addToast(`Bucket "${name}" deleted`, "success");
       } catch (err) {
-        addToast(
-          err instanceof Error ? err.message : "Failed to delete bucket",
-          "error"
-        );
+        addToast(err instanceof Error ? err.message : "Failed to delete bucket", "error");
       }
     },
     [deleteBucket, selectedBucket, addToast]
   );
+
+  const handleCreateFolder = useCallback(async () => {
+    const name = prompt("Folder name:");
+    if (!name) return;
+    try {
+      await createFolder(name);
+      addToast(`Folder "${name}" created`, "success");
+    } catch (err) {
+      addToast(err instanceof Error ? err.message : "Failed to create folder", "error");
+    }
+  }, [createFolder, addToast]);
+
+  const handleUpload = useCallback(async () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.multiple = true;
+    input.onchange = async () => {
+      const files = input.files;
+      if (!files) return;
+      for (const file of Array.from(files)) {
+        try {
+          await uploadFile(file, prefix);
+          addToast(`Uploaded "${file.name}"`, "success");
+        } catch (err) {
+          addToast(err instanceof Error ? err.message : `Failed to upload "${file.name}"`, "error");
+        }
+      }
+    };
+    input.click();
+  }, [uploadFile, prefix, addToast]);
+
+  const handleViewFile = useCallback(
+    (obj: S3Object) => {
+      setViewState({
+        type: "file",
+        bucket: selectedBucket!,
+        key: obj.key,
+        name: obj.name,
+        size: obj.size,
+        lastModified: obj.lastModified,
+      });
+    },
+    [selectedBucket]
+  );
+
+  const handleDownload = useCallback(
+    async (obj: S3Object) => {
+      try {
+        await downloadObject(obj.key, obj.name);
+      } catch (err) {
+        addToast(err instanceof Error ? err.message : "Failed to download", "error");
+      }
+    },
+    [downloadObject, addToast]
+  );
+
+  const handleRename = useCallback(
+    async (obj: S3Object) => {
+      const newName = prompt("New name:", obj.name);
+      if (!newName || newName === obj.name) return;
+      try {
+        if (obj.isFolder) {
+          const oldPrefix = obj.key;
+          const parentPrefix = oldPrefix.slice(0, oldPrefix.lastIndexOf("/", oldPrefix.length - 2) + 1);
+          const newPrefix = parentPrefix + newName + "/";
+          await renameFolder(oldPrefix, newPrefix);
+        } else {
+          const parentPrefix = obj.key.slice(0, obj.key.lastIndexOf("/") + 1);
+          await renameObject(obj.key, parentPrefix + newName);
+        }
+        addToast(`Renamed to "${newName}"`, "success");
+      } catch (err) {
+        addToast(err instanceof Error ? err.message : "Failed to rename", "error");
+      }
+    },
+    [renameObject, renameFolder, addToast]
+  );
+
+  const handleDelete = useCallback(
+    async (obj: S3Object) => {
+      const msg = obj.isFolder
+        ? `Delete folder "${obj.name}" and all its contents?`
+        : `Delete "${obj.name}"?`;
+      if (!confirm(msg)) return;
+      try {
+        if (obj.isFolder) {
+          await deleteFolder(obj.key);
+        } else {
+          await deleteObject(obj.key);
+        }
+        addToast(`Deleted "${obj.name}"`, "success");
+      } catch (err) {
+        addToast(err instanceof Error ? err.message : "Failed to delete", "error");
+      }
+    },
+    [deleteObject, deleteFolder, addToast]
+  );
+
+  // Move handler is a placeholder — will be replaced by MoveDialog in Task 6
+  const handleMove = useCallback((_obj: S3Object) => {
+    addToast("Move dialog coming soon", "error");
+  }, [addToast]);
 
   return (
     <div className="h-screen flex flex-col bg-slate-950 text-slate-200">
@@ -70,14 +185,41 @@ export default function App() {
           onDeleteBucket={handleDeleteBucket}
           onCreateBucket={handleCreateBucket}
         />
-        <div className="flex-1 flex items-center justify-center text-slate-500">
-          {selectedBucket
-            ? "File list coming in next task..."
-            : "Select a bucket to browse"}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {selectedBucket ? (
+            <>
+              <BreadcrumbBar
+                bucket={selectedBucket}
+                prefix={prefix}
+                onNavigate={handleNavigate}
+                onCreateFolder={handleCreateFolder}
+                onUpload={handleUpload}
+              />
+              {viewState.type === "list" ? (
+                <FileList
+                  objects={objects}
+                  loading={objectsLoading}
+                  onNavigateFolder={handleNavigate}
+                  onViewFile={handleViewFile}
+                  onDownload={handleDownload}
+                  onRename={handleRename}
+                  onMove={handleMove}
+                  onDelete={handleDelete}
+                />
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-slate-500">
+                  File viewer coming in next task...
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-slate-500">
+              Select a bucket to browse
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Toasts */}
       <div className="fixed bottom-4 right-4 flex flex-col gap-2 z-50">
         {toasts.map((toast) => (
           <div
