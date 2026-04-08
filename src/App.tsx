@@ -4,6 +4,7 @@ import Sidebar from "./components/Sidebar";
 import BreadcrumbBar from "./components/BreadcrumbBar";
 import FileList from "./components/FileList";
 import FileViewer from "./components/FileViewer";
+import MoveDialog from "./components/MoveDialog";
 import { useS3Buckets } from "./hooks/useS3Buckets";
 import { useS3Objects } from "./hooks/useS3Objects";
 import { ViewState, ToastMessage, S3Object } from "./types";
@@ -15,6 +16,7 @@ export default function App() {
   const [prefix, setPrefix] = useState("");
   const [viewState, setViewState] = useState<ViewState>({ type: "list" });
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [moveTarget, setMoveTarget] = useState<S3Object | null>(null);
 
   const {
     objects,
@@ -26,6 +28,8 @@ export default function App() {
     renameObject,
     renameFolder,
     downloadObject,
+    moveObject,
+    moveFolder,
   } = useS3Objects(selectedBucket, prefix);
 
   const addToast = useCallback((message: string, type: "error" | "success") => {
@@ -170,10 +174,29 @@ export default function App() {
     [deleteObject, deleteFolder, addToast]
   );
 
-  // Move handler is a placeholder — will be replaced by MoveDialog in Task 6
-  const handleMove = useCallback((_obj: S3Object) => {
-    addToast("Move dialog coming soon", "error");
-  }, [addToast]);
+  const handleMove = useCallback((obj: S3Object) => {
+    setMoveTarget(obj);
+  }, []);
+
+  const handleMoveConfirm = useCallback(
+    async (newPrefix: string) => {
+      if (!moveTarget) return;
+      try {
+        if (moveTarget.isFolder) {
+          const newFolderPrefix = newPrefix + moveTarget.name + "/";
+          await moveFolder(moveTarget.key, newFolderPrefix);
+        } else {
+          const newKey = newPrefix + moveTarget.name;
+          await moveObject(moveTarget.key, newKey);
+        }
+        addToast(`Moved "${moveTarget.name}"`, "success");
+      } catch (err) {
+        addToast(err instanceof Error ? err.message : "Failed to move", "error");
+      }
+      setMoveTarget(null);
+    },
+    [moveTarget, moveObject, moveFolder, addToast]
+  );
 
   return (
     <div className="h-screen flex flex-col bg-slate-950 text-slate-200">
@@ -233,6 +256,16 @@ export default function App() {
           )}
         </div>
       </div>
+
+      {moveTarget && selectedBucket && (
+        <MoveDialog
+          bucket={selectedBucket}
+          currentKey={moveTarget.key}
+          isFolder={moveTarget.isFolder}
+          onMove={handleMoveConfirm}
+          onCancel={() => setMoveTarget(null)}
+        />
+      )}
 
       <div className="fixed bottom-4 right-4 flex flex-col gap-2 z-50">
         {toasts.map((toast) => (
