@@ -140,7 +140,7 @@ export function useS3Objects(bucket: string | null, prefix: string) {
       await s3Client.send(
         new CopyObjectCommand({
           Bucket: bucket!,
-          CopySource: `${bucket}/${oldKey}`,
+          CopySource: `${bucket}/${encodeURIComponent(oldKey)}`,
           Key: newKey,
         })
       );
@@ -168,7 +168,7 @@ export function useS3Objects(bucket: string | null, prefix: string) {
           await s3Client.send(
             new CopyObjectCommand({
               Bucket: bucket!,
-              CopySource: `${bucket}/${obj.Key}`,
+              CopySource: `${bucket}/${encodeURIComponent(obj.Key!)}`,
               Key: newKey,
             })
           );
