@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { S3Object } from "../types";
+import type { S3Object } from "../types";
 
 interface FileListProps {
   objects: S3Object[];

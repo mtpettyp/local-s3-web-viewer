@@ -7,7 +7,7 @@ import {
   DeleteObjectsCommand,
 } from "@aws-sdk/client-s3";
 import { s3Client } from "../s3Client";
-import { S3Bucket } from "../types";
+import type { S3Bucket } from "../types";
 
 export function useS3Buckets() {
   const [buckets, setBuckets] = useState<S3Bucket[]>([]);

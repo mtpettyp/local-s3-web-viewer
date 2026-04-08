@@ -8,7 +8,7 @@ import {
   GetObjectCommand,
 } from "@aws-sdk/client-s3";
 import { s3Client } from "../s3Client";
-import { S3Object } from "../types";
+import type { S3Object } from "../types";
 
 export function useS3Objects(bucket: string | null, prefix: string) {
   const [objects, setObjects] = useState<S3Object[]>([]);

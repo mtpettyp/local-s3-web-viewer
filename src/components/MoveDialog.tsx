@@ -13,7 +13,7 @@ interface MoveDialogProps {
 export default function MoveDialog({
   bucket,
   currentKey,
-  isFolder,
+  isFolder: _isFolder,
   onMove,
   onCancel,
 }: MoveDialogProps) {

@@ -7,7 +7,7 @@ import FileViewer from "./components/FileViewer";
 import MoveDialog from "./components/MoveDialog";
 import { useS3Buckets } from "./hooks/useS3Buckets";
 import { useS3Objects } from "./hooks/useS3Objects";
-import { ViewState, ToastMessage, S3Object } from "./types";
+import type { ViewState, ToastMessage, S3Object } from "./types";
 
 export default function App() {
   const { buckets, loading, error, createBucket, deleteBucket } =

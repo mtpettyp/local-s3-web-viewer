@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { S3Bucket } from "../types";
+import type { S3Bucket } from "../types";
 
 interface SidebarProps {
   buckets: S3Bucket[];
