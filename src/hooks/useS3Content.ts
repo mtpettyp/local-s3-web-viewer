@@ -2,6 +2,12 @@ import { useState, useEffect } from "react";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client } from "../s3Client";
 
+const IMAGE_EXTENSIONS = new Set([
+  "png", "jpg", "jpeg", "gif", "bmp", "webp", "ico", "svg",
+]);
+
+const PDF_EXTENSIONS = new Set(["pdf"]);
+
 const TEXT_EXTENSIONS = new Set([
   "txt", "md", "json", "xml", "yaml", "yml", "csv", "tsv",
   "html", "htm", "css", "js", "ts", "tsx", "jsx",
@@ -17,6 +23,16 @@ const TEXT_EXTENSIONS = new Set([
   "proto",
   "makefile", "dockerfile",
 ]);
+
+export function isImageFile(fileName: string): boolean {
+  const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
+  return IMAGE_EXTENSIONS.has(ext);
+}
+
+export function isPdfFile(fileName: string): boolean {
+  const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
+  return PDF_EXTENSIONS.has(ext);
+}
 
 export function isTextFile(fileName: string): boolean {
   const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
@@ -51,18 +67,24 @@ export function useS3Content(
   fileName: string
 ) {
   const [content, setContent] = useState<string | null>(null);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const language = getLanguage(fileName);
   const isText = isTextFile(fileName);
+  const isImage = isImageFile(fileName);
+  const isPdf = isPdfFile(fileName);
+  const isBlobPreview = isImage || isPdf;
 
   useEffect(() => {
-    if (!bucket || !key || !isText) {
+    if (!bucket || !key || (!isText && !isBlobPreview)) {
       setContent(null);
+      setBlobUrl(null);
       return;
     }
 
     let cancelled = false;
+    let objectUrl: string | null = null;
     setLoading(true);
     setError(null);
 
@@ -71,10 +93,18 @@ export function useS3Content(
         const response = await s3Client.send(
           new GetObjectCommand({ Bucket: bucket, Key: key })
         );
-        const text = await new Response(
-          response.Body as ReadableStream
-        ).text();
-        if (!cancelled) setContent(text);
+        if (isBlobPreview) {
+          const blob = await new Response(
+            response.Body as ReadableStream
+          ).blob();
+          objectUrl = URL.createObjectURL(blob);
+          if (!cancelled) setBlobUrl(objectUrl);
+        } else {
+          const text = await new Response(
+            response.Body as ReadableStream
+          ).text();
+          if (!cancelled) setContent(text);
+        }
       } catch (err) {
         if (!cancelled)
           setError(
@@ -87,8 +117,9 @@ export function useS3Content(
 
     return () => {
       cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [bucket, key, isText]);
+  }, [bucket, key, isText, isBlobPreview]);
 
-  return { content, loading, error, language, isText };
+  return { content, blobUrl, loading, error, language, isText, isImage, isPdf };
 }

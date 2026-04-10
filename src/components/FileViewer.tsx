@@ -37,7 +37,7 @@ export default function FileViewer({
   onBack,
   onDownload,
 }: FileViewerProps) {
-  const { content, loading, error, language, isText } = useS3Content(
+  const { content, blobUrl, loading, error, language, isText, isImage, isPdf } = useS3Content(
     bucket,
     fileKey,
     fileName
@@ -82,7 +82,21 @@ export default function FileViewer({
           <div className="flex items-center justify-center h-full text-red-400">
             {error}
           </div>
-        ) : !isText ? (
+        ) : isImage && blobUrl ? (
+          <div className="flex items-center justify-center h-full p-4">
+            <img
+              src={blobUrl}
+              alt={fileName}
+              className="max-w-full max-h-full object-contain"
+            />
+          </div>
+        ) : isPdf && blobUrl ? (
+          <iframe
+            src={blobUrl}
+            title={fileName}
+            className="w-full h-full border-0"
+          />
+        ) : !isText && !isImage && !isPdf ? (
           <div className="flex flex-col items-center justify-center h-full text-slate-500 gap-2">
             <span>Binary file — no preview available</span>
             <button
