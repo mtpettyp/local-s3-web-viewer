@@ -1,0 +1,5 @@
+window.__CONFIG__ = {
+  "accessKeyId": "your-access-key",
+  "secretAccessKey": "your-secret-key",
+  "region": "us-east-1"
+};
