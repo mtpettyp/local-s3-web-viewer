@@ -98,11 +98,12 @@ git push --tags
 
 This produces Docker Hub tags `1.0.0`, `1.0`, `1`, and `latest`.
 
+Images are pushed to [`mtpettyp/s3-web-viewer`](https://hub.docker.com/r/mtpettyp/s3-web-viewer) on Docker Hub.
+
 ### Setup
 
-Configure these in your GitHub repository settings under **Settings > Secrets and variables > Actions**:
+Configure this in your GitHub repository settings under **Settings > Secrets and variables > Actions**:
 
-- **Variable:** `DOCKERHUB_USERNAME` — your Docker Hub username
 - **Secret:** `DOCKERHUB_TOKEN` — a Docker Hub [access token](https://hub.docker.com/settings/security)
 
 ## Development
